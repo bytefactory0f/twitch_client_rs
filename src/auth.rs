@@ -1,5 +1,5 @@
+use reqwest::Error;
 use serde::Deserialize;
-use std::error::Error;
 
 use crate::credentials::Credentials;
 
@@ -17,7 +17,7 @@ struct RefreshTokenResponse {
 /// token. Refresh tokens are longer lived than access tokens, so the
 /// client can be configured once without having to add a new token
 /// constantly.
-pub async fn refresh_access_token(credentials: &Credentials) -> Result<String, Box<dyn Error>> {
+pub async fn refresh_access_token(credentials: &Credentials) -> Result<String, Error> {
     let res = reqwest::Client::new()
         .post("https://id.twitch.tv/oauth2/token")
         .form(&[
