@@ -65,8 +65,6 @@ impl TwitchClient {
             .await
             .map_err(ConnectionError::WebsocketConnectionError)?;
 
-        println!("WebSocket handshake has been successfully completed");
-
         self.ws_stream = Some(ws_stream);
         Ok(())
     }
