@@ -37,10 +37,11 @@ pub struct TwitchClient {
     url: url::Url,
     message_buffer: VecDeque<Result<IRCMessage, MessageParseError>>,
     ws_stream: Option<WebSocketStream<MaybeTlsStream<TcpStream>>>,
+    auto_pong: bool,
 }
 
 impl TwitchClient {
-    pub fn new(credentials: Credentials, nick: String) -> Self {
+    pub fn new(credentials: Credentials, nick: String, auto_pong: bool) -> Self {
         TwitchClient {
             nick,
             credentials,
@@ -48,6 +49,7 @@ impl TwitchClient {
             access_token: String::new(),
             url: url::Url::parse("wss://irc-ws.chat.twitch.tv:443").unwrap(),
             ws_stream: None,
+            auto_pong,
         }
     }
 
@@ -132,8 +134,7 @@ impl TwitchClient {
         Ok(())
     }
 
-    // Return Option<Result<..., Error>>
-    pub async fn next(&mut self) -> Option<Result<IRCMessage, Error>> {
+    async fn get_next_message(&mut self) -> Option<Result<IRCMessage, Error>> {
         if !self.message_buffer.is_empty() {
             return Some(
                 self.message_buffer
@@ -180,6 +181,23 @@ impl TwitchClient {
                 None // Should return Some(Err())
             }
             Err(e) => Some(Err(Error::from(e))),
+        }
+    }
+
+    pub async fn next(&mut self) -> Option<Result<IRCMessage, Error>> {
+        loop {
+            let message = self.get_next_message().await?;
+
+            if self.auto_pong {
+                if let Ok(IRCMessage::Ping(msg)) = message {
+                    if let Err(e) = self.pong(msg.as_str()).await {
+                        return Some(Err(e));
+                    }
+                    continue;
+                }
+            }
+
+            return Some(message);
         }
     }
 }
